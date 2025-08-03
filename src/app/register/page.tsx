@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/stores/authStore";
+import { useEffect } from "react";
 
 const formSchema = z
 	.object({
@@ -38,6 +40,7 @@ const formSchema = z
 
 export default function RegisterPage() {
 	const router = useRouter();
+	const { setUser, isAuthenticated } = useAuthStore();
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
@@ -46,17 +49,35 @@ export default function RegisterPage() {
 		},
 	});
 
+	useEffect(() => {
+		if (isAuthenticated) {
+			router.push("/tasks");
+		}
+	}, [isAuthenticated, router]);
+
 	async function onSubmit(data: z.infer<typeof formSchema>) {
 		try {
 			const res = await client.api.auth.register.$post({ json: data });
 
 			if (!res.ok) {
 				const data = await res.json();
-				throw new Error(data.error || "登録に失敗しました。");
+				form.setError("password", {
+					type: "manual",
+					message: data.error,
+				});
+				return;
 			}
 
-			router.push("/");
-		} catch (error) {}
+			const userData = await res.json();
+			setUser(userData.user);
+			router.push("/tasks");
+		} catch (error) {
+			form.setError("password", {
+				type: "manual",
+				message: "ログインに失敗しました。",
+			});
+			console.error("Login error:", error);
+		}
 	}
 
 	return (

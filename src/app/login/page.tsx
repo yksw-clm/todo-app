@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
+import { useAuthStore } from "@/stores/authStore";
 
 const formSchema = z.object({
 	email: z.email(),
@@ -30,6 +32,7 @@ const formSchema = z.object({
 
 export default function LoginPage() {
 	const router = useRouter();
+	const { setUser, isAuthenticated } = useAuthStore();
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
@@ -37,6 +40,12 @@ export default function LoginPage() {
 			password: "",
 		},
 	});
+
+	useEffect(() => {
+		if (isAuthenticated) {
+			router.push("/tasks");
+		}
+	}, [isAuthenticated, router]);
 
 	async function onSubmit(data: z.infer<typeof formSchema>) {
 		try {
@@ -48,9 +57,12 @@ export default function LoginPage() {
 					type: "manual",
 					message: data.error,
 				});
+				return;
 			}
 
-			router.push("/");
+			const userData = await res.json();
+			setUser(userData.user);
+			router.push("/tasks");
 		} catch (error) {
 			form.setError("password", {
 				type: "manual",

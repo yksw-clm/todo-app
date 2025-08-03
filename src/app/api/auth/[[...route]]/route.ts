@@ -4,8 +4,8 @@ import { handle } from "hono/vercel";
 import z from "zod";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@/generated/prisma";
-import { sign } from "hono/jwt";
-import { setCookie } from "hono/cookie";
+import { sign, verify } from "hono/jwt";
+import { getCookie, setCookie } from "hono/cookie";
 
 const prisma = new PrismaClient();
 
@@ -57,8 +57,9 @@ const routes = app
 				path: "/",
 			});
 
+			const { password: _, ...userWithoutPassword } = newUser;
 			return c.json(
-				{ message: "ユーザー登録が成功しました。", userId: newUser.id },
+				{ message: "ユーザー登録が成功しました。", user: userWithoutPassword },
 				201,
 			);
 		} catch (error) {
@@ -107,6 +108,43 @@ const routes = app
 			console.error("Login error:", error);
 			return c.json({ error: "サーバーエラーが発生しました。" }, 500);
 		}
+	})
+	.get("/me", async (c) => {
+		const token = getCookie(c, "token");
+
+		if (!token) {
+			return c.json({ error: "認証されていません。" }, 401);
+		}
+
+		try {
+			const secret = process.env.JWT_SECRET || "your-secret-key";
+			const payload = await verify(token, secret);
+
+			const user = await prisma.user.findUnique({
+				where: { id: payload.sub as string },
+				select: { id: true, email: true },
+			});
+
+			if (!user) {
+				return c.json({ error: "ユーザーが見つかりません。" }, 404);
+			}
+
+			return c.json({ user }, 200);
+		} catch (error) {
+			console.error("Error verifying token:", error);
+			return c.json({ error: "サーバーエラーが発生しました。" }, 500);
+		}
+	})
+	.post("/logout", async (c) => {
+		setCookie(c, "token", "", {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "Lax",
+			path: "/",
+			expires: new Date(0),
+		});
+
+		return c.json({ message: "ログアウトしました。" });
 	});
 
 export const GET = handle(routes);
