@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { client } from "@/lib/hono";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
 	Card,
 	CardContent,
@@ -134,6 +135,15 @@ export default function RegisterPage() {
 							</Button>
 						</form>
 					</Form>
+					<p className="mt-6 text-center text-sm text-muted-foreground">
+						すでにアカウントをお持ちですか？
+						<Link
+							href="/login"
+							className="underline underline-offset-4 hover:text-primary"
+						>
+							ログイン
+						</Link>
+					</p>
 				</CardContent>
 			</Card>
 		</div>
