@@ -56,11 +56,16 @@ interface Task {
 	updatedAt: string;
 }
 
-export default function EditTaskPage({ params }: { params: { id: string } }) {
+export default function EditTaskPage({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
 	const router = useRouter();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [task, setTask] = useState<Task | null>(null);
+	const [taskId, setTaskId] = useState<string>("");
 
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
@@ -73,10 +78,21 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
 	});
 
 	useEffect(() => {
+		const initializeParams = async () => {
+			const resolvedParams = await params;
+			setTaskId(resolvedParams.id);
+		};
+
+		initializeParams();
+	}, [params]);
+
+	useEffect(() => {
+		if (!taskId) return;
+
 		const fetchTask = async () => {
 			try {
 				const res = await client.api.tasks[":id"].$get({
-					param: { id: params.id },
+					param: { id: taskId },
 				});
 
 				if (!res.ok) {
@@ -106,7 +122,7 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
 		};
 
 		fetchTask();
-	}, [params.id, form, router]);
+	}, [taskId, form, router]);
 
 	async function onSubmit(data: z.infer<typeof formSchema>) {
 		try {
@@ -118,7 +134,7 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
 			};
 
 			const res = await client.api.tasks[":id"].$put({
-				param: { id: params.id },
+				param: { id: taskId },
 				json: submitData,
 			});
 
